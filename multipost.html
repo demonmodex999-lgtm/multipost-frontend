@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MultiPost</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+const STYLE = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #f0f0f0; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+  .app { max-width: 480px; margin: 0 auto; padding: 24px 16px; min-height: 100vh; }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+  .logo { width: 36px; height: 36px; background: linear-gradient(135deg, #ff2d55, #00f2ea); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; background: linear-gradient(90deg, #ff2d55, #00f2ea); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .section { background: #13131a; border: 1px solid #1f1f2e; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+  .section-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #666; margin-bottom: 16px; }
+  .account-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #1a1a24; border-radius: 12px; margin-bottom: 8px; border: 1px solid #252535; transition: all 0.2s; cursor: pointer; }
+  .account-item:hover { border-color: #00f2ea44; }
+  .account-item.selected { border-color: #00f2ea; background: #0d2626; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; overflow: hidden; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .account-info { flex: 1; }
+  .account-name { font-size: 14px; font-weight: 500; }
+  .account-handle { font-size: 12px; color: #555; }
+  .check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #333; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 11px; flex-shrink: 0; }
+  .check.on { background: #00f2ea; border-color: #00f2ea; color: #000; }
+  .remove-btn { background: none; border: none; color: #ff2d5544; cursor: pointer; font-size: 16px; padding: 4px; transition: color 0.2s; flex-shrink: 0; }
+  .remove-btn:hover { color: #ff2d55; }
+  .connect-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #ff2d5518, #00f2ea18); border: 1px solid #ff2d5540; border-radius: 12px; color: #ff2d55; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }
+  .connect-btn:hover { background: linear-gradient(135deg, #ff2d5530, #00f2ea30); }
+  .upload-zone { border: 2px dashed #252535; border-radius: 14px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .upload-zone:hover { border-color: #ff2d5566; background: #1a0d10; }
+  .upload-zone.has-video { border-color: #00f2ea55; background: #0d1e1e; }
+  .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-label { font-size: 14px; color: #888; }
+  .upload-label span { color: #ff2d55; font-weight: 500; }
+  .video-name { font-size: 13px; color: #00f2ea; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .caption-box { width: 100%; background: #1a1a24; border: 1px solid #252535; border-radius: 12px; padding: 12px; color: #f0f0f0; font-family: 'DM Sans', sans-serif; font-size: 14px; resize: none; outline: none; transition: border-color 0.2s; min-height: 80px; }
+  .caption-box:focus { border-color: #00f2ea55; }
+  .ai-btn { margin-top: 8px; padding: 8px 14px; background: linear-gradient(135deg, #ff2d5520, #00f2ea20); border: 1px solid #ff2d5540; border-radius: 8px; color: #ff2d55; font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+  .ai-btn:hover { background: linear-gradient(135deg, #ff2d5533, #00f2ea33); }
+  .ai-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .post-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #ff2d55, #ff6b35); border: none; border-radius: 14px; color: white; font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; }
+  .post-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px #ff2d5544; }
+  .post-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .status-bar { background: #13131a; border: 1px solid #1f1f2e; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .status-dot.success { background: #00f2ea; box-shadow: 0 0 8px #00f2ea; }
+  .status-dot.error { background: #ff2d55; box-shadow: 0 0 8px #ff2d55; }
+  .status-dot.loading { background: #ff2d55; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+  .progress-list { margin-top: 8px; }
+  .progress-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; border-bottom: 1px solid #1f1f2e; }
+  .progress-item:last-child { border-bottom: none; }
+  .modal-overlay { position: fixed; inset: 0; background: #000000cc; display: flex; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
+  .modal { background: #13131a; border: 1px solid #252535; border-radius: 20px; padding: 24px; width: 100%; max-width: 360px; }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-size: 12px; color: #666; margin-bottom: 16px; line-height: 1.6; }
+  .input { width: 100%; background: #1a1a24; border: 1px solid #252535; border-radius: 10px; padding: 12px; color: #f0f0f0; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; margin-bottom: 10px; transition: border-color 0.2s; }
+  .input:focus { border-color: #00f2ea55; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .btn-cancel { flex: 1; padding: 12px; background: transparent; border: 1px solid #252535; border-radius: 10px; color: #888; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; }
+  .btn-confirm { flex: 1; padding: 12px; background: linear-gradient(135deg, #ff2d55, #ff6b35); border: none; border-radius: 10px; color: white; cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+  .api-note { background: #0d1a0d; border: 1px solid #00f2ea22; border-radius: 10px; padding: 12px; margin-top: 10px; font-size: 12px; color: #777; line-height: 1.7; }
+  .api-note a { color: #00f2ea; text-decoration: none; }
+  .api-note strong { color: #ccc; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab { flex: 1; padding: 8px; background: #1a1a24; border: 1px solid #252535; border-radius: 8px; color: #666; font-size: 12px; cursor: pointer; text-align: center; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+  .tab.active { background: #1a0d10; border-color: #ff2d5566; color: #ff2d55; }
+  .note { font-size: 11px; color: #444; text-align: center; margin-top: 10px; line-height: 1.5; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 10px; margin-left: 6px; background: #1a2a1a; color: #00f2ea; border: 1px solid #00f2ea33; }
+  .badge.demo { background: #1a1a2a; color: #555; border-color: #252535; }
+`;
+
+const COLORS = [
+  "linear-gradient(135deg,#ff2d55,#ff6b35)",
+  "linear-gradient(135deg,#00f2ea,#0070f3)",
+  "linear-gradient(135deg,#a855f7,#ec4899)",
+  "linear-gradient(135deg,#f59e0b,#ef4444)",
+  "linear-gradient(135deg,#10b981,#06b6d4)"
+];
+
+// ─── TikTok API ────────────────────────────────────────────────────────────────
+// Replace with your app's Client Key from developers.tiktok.com
+let TIKTOK_CLIENT_KEY = localStorage.getItem("tt_client_key") || "";
+const REDIRECT_URI = window.location.origin + window.location.pathname;
+
+function getTikTokAuthURL(state) {
+  const p = new URLSearchParams({
+    client_key: TIKTOK_CLIENT_KEY,
+    scope: "user.info.basic,video.upload",
+    response_type: "code",
+    redirect_uri: REDIRECT_URI,
+    state,
+  });
+  return `https://www.tiktok.com/v2/auth/authorize/?${p}`;
+}
+
+async function exchangeCode(code) {
+  // ⚠️ In production, proxy this through your backend to keep client_secret safe.
+  // POST https://open.tiktokapis.com/v2/oauth/token/
+  // body: grant_type=authorization_code&client_key=...&client_secret=...&code=...&redirect_uri=...
+  // For demo purposes we return a placeholder:
+  const r = await fetch("https://multipost-server-production.up.railway.app/api/token", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({code}) }); return await r.json();
+}
+
+async function fetchUserInfo(token) {
+  const r = await fetch("https://open.tiktokapis.com/v2/user/info/?fields=display_name,avatar_url", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const d = await r.json();
+  return d?.data?.user || null;
+}
+
+async function uploadVideo(token, file, cap) {
+  // Init
+  const initR = await fetch("https://open.tiktokapis.com/v2/post/publish/video/init/", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      post_info: { title: cap || " ", privacy_level: "SELF_ONLY", disable_duet: false, disable_comment: false, disable_stitch: false },
+      source_info: { source: "FILE_UPLOAD", video_size: file.size, chunk_size: file.size, total_chunk_count: 1 }
+    })
+  });
+  const init = await initR.json();
+  const { upload_url, publish_id } = init?.data || {};
+  if (!upload_url) throw new Error(init?.error?.message || "Upload init failed");
+
+  // Upload bytes
+  await fetch(upload_url, {
+    method: "PUT",
+    headers: { "Content-Range": `bytes 0-${file.size - 1}/${file.size}`, "Content-Type": "video/mp4" },
+    body: file
+  });
+  return publish_id;
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
+const PICONS = { pending: "⏳", uploading: "🔄", done: "✅", error: "❌" };
+const PCOLORS = { done: "#00f2ea", error: "#ff2d55", uploading: "#f59e0b", pending: "#555" };
+
+function App() {
+  const [accounts, setAccounts] = useState([]);
+  const [videoFile, setVideoFile] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [status, setStatus] = useState(null);
+  const [progress, setProgress] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [modal, setModal] = useState(null); // null | "setup" | "key"
+  const [clientKey, setClientKey] = useState(TIKTOK_CLIENT_KEY);
+  const [postMode, setPostMode] = useState("now");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const fileRef = useRef();
+
+  // Handle OAuth redirect
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const code = p.get("code"), state = p.get("state");
+    if (code && state?.startsWith("ttacc_")) {
+      window.history.replaceState({}, "", window.location.pathname);
+      handleOAuth(code);
+    }
+  }, []);
+
+  const handleOAuth = async (code) => {
+    setStatus({ type: "loading", msg: "Connecting account..." });
+    try {
+      const { access_token, open_id } = await exchangeCode(code);
+      const info = await fetchUserInfo(access_token);
+      const acc = {
+        id: open_id,
+        name: info?.display_name || "TikTok Account",
+        handle: `@${(info?.display_name || "user").toLowerCase().replace(/\s+/g, "")}`,
+        avatar: info?.avatar_url || null,
+        color: COLORS[accounts.length % COLORS.length],
+        token: access_token,
+        real: true,
+        selected: true,
+      };
+      setAccounts(prev => [...prev.filter(a => a.id !== acc.id), acc]);
+      setStatus({ type: "success", msg: `Connected ${acc.name}` });
+    } catch {
+      setStatus({ type: "error", msg: "Failed to connect account." });
+    }
+  };
+
+  const connectAccount = () => {
+    if (!TIKTOK_CLIENT_KEY) { setModal("setup"); return; }
+    window.location.href = getTikTokAuthURL(`ttacc_${Date.now()}`);
+  };
+
+  const saveKey = () => {
+    TIKTOK_CLIENT_KEY = clientKey;
+    localStorage.setItem("tt_client_key", clientKey);
+    setModal(null);
+    window.location.href = getTikTokAuthURL(`ttacc_${Date.now()}`);
+  };
+
+  const toggle = (id) => setAccounts(p => p.map(a => a.id === id ? { ...a, selected: !a.selected } : a));
+  const remove = (id) => setAccounts(p => p.filter(a => a.id !== id));
+  const selected = accounts.filter(a => a.selected);
+
+  const generateCaption = async () => {
+    setAiLoading(true);
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: `Write a short catchy TikTok caption with 3–5 hashtags${videoFile ? ` for a video named "${videoFile.name}"` : ""}. Return ONLY the caption and hashtags, nothing else.` }]
+        })
+      });
+      const d = await r.json();
+      setCaption(d.content?.find(c => c.type === "text")?.text?.trim() || "");
+    } catch { setStatus({ type: "error", msg: "Caption generation failed." }); }
+    setAiLoading(false);
+  };
+
+  const handlePost = async () => {
+    if (!videoFile || !selected.length) return;
+    setPosting(true);
+    setProgress(selected.map(a => ({ id: a.id, handle: a.handle, status: "pending" })));
+    setStatus({ type: "loading", msg: `Posting to ${selected.length} account(s)...` });
+
+    for (const acc of selected) {
+      setProgress(p => p.map(x => x.id === acc.id ? { ...x, status: "uploading" } : x));
+      try {
+        if (acc.real && acc.token) {
+          await uploadVideo(acc.token, videoFile, caption);
+        } else {
+          await new Promise(r => setTimeout(r, 1500)); // demo delay
+        }
+        setProgress(p => p.map(x => x.id === acc.id ? { ...x, status: "done" } : x));
+      } catch (e) {
+        setProgress(p => p.map(x => x.id === acc.id ? { ...x, status: "error", msg: e.message } : x));
+      }
+    }
+
+    setPosting(false);
+    setStatus({ type: "success", msg: "Done! Check progress above." });
+  };
+
+  return (
+    <>
+      <style>{STYLE}</style>
+      <div className="app">
+
+        <div className="header">
+          <div className="logo">🎵</div>
+          <span className="logo-text">MultiPost</span>
+        </div>
+
+        {status && (
+          <div className="status-bar">
+            <div className={`status-dot ${status.type}`} />
+            <div style={{ flex: 1 }}>
+              <div style={{ color: status.type === "error" ? "#ff2d55" : status.type === "success" ? "#00f2ea" : "#888" }}>{status.msg}</div>
+              {progress.length > 0 && (
+                <div className="progress-list">
+                  {progress.map(p => (
+                    <div key={p.id} className="progress-item">
+                      <span>{PICONS[p.status]}</span>
+                      <span style={{ flex: 1 }}>{p.handle}</span>
+                      <span style={{ color: PCOLORS[p.status], fontSize: 11 }}>
+                        {p.status === "uploading" ? "Uploading..." : p.status === "done" ? "Posted ✓" : p.status === "error" ? (p.msg || "Failed") : "Waiting"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Accounts */}
+        <div className="section">
+          <div className="section-title">Accounts ({accounts.length})</div>
+          {accounts.length === 0 && <p style={{ fontSize: 13, color: "#444", marginBottom: 12 }}>No accounts yet — connect one below.</p>}
+          {accounts.map((acc, i) => (
+            <div key={acc.id} className={`account-item ${acc.selected ? "selected" : ""}`} onClick={() => toggle(acc.id)}>
+              <div className="avatar" style={{ background: acc.avatar ? "transparent" : acc.color }}>
+                {acc.avatar ? <img src={acc.avatar} alt="" /> : acc.name[0].toUpperCase()}
+              </div>
+              <div className="account-info">
+                <div className="account-name">
+                  {acc.name}
+                  <span className={`badge ${acc.real ? "" : "demo"}`}>{acc.real ? "connected" : "demo"}</span>
+                </div>
+                <div className="account-handle">{acc.handle}</div>
+              </div>
+              <div className={`check ${acc.selected ? "on" : ""}`}>{acc.selected ? "✓" : ""}</div>
+              <button className="remove-btn" onClick={e => { e.stopPropagation(); remove(acc.id); }}>✕</button>
+            </div>
+          ))}
+          <button className="connect-btn" onClick={connectAccount}>🔗 Connect TikTok Account</button>
+        </div>
+
+        {/* Video */}
+        <div className="section">
+          <div className="section-title">Video</div>
+          <div className={`upload-zone ${videoFile ? "has-video" : ""}`} onClick={() => fileRef.current.click()}>
+            <div className="upload-icon">{videoFile ? "🎬" : "📤"}</div>
+            <div className="upload-label">{videoFile ? "Video ready" : <><span>Tap to upload</span> a video</>}</div>
+            {videoFile && <div className="video-name">{videoFile.name}</div>}
+            <input ref={fileRef} type="file" accept="video/*" style={{ display: "none" }}
+              onChange={e => { setVideoFile(e.target.files[0]); setStatus(null); setProgress([]); }} />
+          </div>
+        </div>
+
+        {/* Caption */}
+        <div className="section">
+          <div className="section-title">Caption</div>
+          <textarea className="caption-box" placeholder="Write a caption..." value={caption} onChange={e => setCaption(e.target.value)} />
+          <button className="ai-btn" onClick={generateCaption} disabled={aiLoading}>
+            {aiLoading ? "⏳ Generating..." : "✨ Generate with AI"}
+          </button>
+        </div>
+
+        {/* Schedule */}
+        <div className="section">
+          <div className="section-title">When</div>
+          <div className="tabs">
+            <div className={`tab ${postMode === "now" ? "active" : ""}`} onClick={() => setPostMode("now")}>Post Now</div>
+            <div className={`tab ${postMode === "schedule" ? "active" : ""}`} onClick={() => setPostMode("schedule")}>Schedule</div>
+          </div>
+          {postMode === "schedule" && (
+            <input type="datetime-local" className="input" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} style={{ marginBottom: 0 }} />
+          )}
+        </div>
+
+        <button className="post-btn" onClick={handlePost} disabled={!videoFile || !selected.length || posting}>
+          {posting ? "Posting..." : `${postMode === "schedule" ? "Schedule" : "Post"} to ${selected.length} Account${selected.length !== 1 ? "s" : ""}`}
+        </button>
+        <p className="note">Selected: {selected.map(a => a.handle).join(" · ") || "None"}</p>
+
+      </div>
+
+      {/* Setup Modal */}
+      {modal === "setup" && (
+        <div className="modal-overlay" onClick={() => setModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">TikTok API Setup</div>
+            <div className="modal-sub">Enter your TikTok app Client Key to connect real accounts.</div>
+            <input className="input" placeholder="Client Key (from developers.tiktok.com)" value={clientKey} onChange={e => setClientKey(e.target.value)} />
+            <div className="api-note">
+              1. Go to <a href="https://developers.tiktok.com" target="_blank" rel="noreferrer">developers.tiktok.com</a> → Create App<br />
+              2. Copy your <strong>Client Key</strong> and paste above<br />
+              3. Add <strong>{REDIRECT_URI}</strong> as Redirect URI<br />
+              4. Enable <strong>video.upload</strong> + <strong>user.info.basic</strong> scopes<br /><br />
+              ⚠️ For real token exchange, deploy a small backend on <a href="https://railway.app" target="_blank" rel="noreferrer">Railway</a> (free) to keep your Client Secret safe.
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setModal(null)}>Cancel</button>
+              <button className="btn-confirm" onClick={saveKey} disabled={!clientKey.trim()}>Connect →</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
